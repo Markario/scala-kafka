@@ -5,13 +5,12 @@ package com.markario
  */
 package com.markario
 
-import akka.actor.Actor.Receive
-import akka.actor.{Actor, ActorRefFactory}
-import shapeless.HNil
-import spray.httpx.marshalling.ToResponseMarshallable
-import spray.routing._
+import akka.actor.{ActorRefFactory, Actor}
+import shapeless.{HNil, HList}
+import spray.json.DefaultJsonProtocol._
 import spray.json._
-import DefaultJsonProtocol._
+import spray.routing._
+import spray.routing.directives.RouteDirectives
 
 // we don't implement our route structure directly in the service actor because
 // we want to be able to test it independently, without having to spin up an actor
@@ -33,50 +32,53 @@ trait MyService extends HttpService {
 
   val myRoute =
     path("api" / "int" / IntNumber / IntNumber) { (num, num2) =>
-      val intsTo = 1 to num
+      val intsTo = num to num2
       val json = intsTo.toList.toJson
       complete(json.toString)
     }
 }
 
-trait ServiceActionComponent {
-  val serviceAction: ServiceAction
-  trait ServiceAction {
-    def receiveAction: (_ => ToResponseMarshallable)
-  }
-}
-
-trait ServiceDirectiveComponent {
-  val serviceDirective: ServiceDirective
-  trait ServiceDirective {
-    def directive: Directive[_]
+trait ServicePathComponent {
+  val servicePath: ServicePath
+  trait ServicePath extends Directives{
+    def path[L <: HList]: Directive[L]
   }
 }
 
 trait ServiceRouteComponent {
   val serviceRoute: ServiceRoute
-  trait ServiceRoute extends HttpService {
-    def route: (_ => ToResponseMarshallable) => Route
+  trait ServiceRoute extends RouteDirectives{
+    def route[L <: HList]: (L => Route)
   }
 }
 
 trait ServiceActorComponent {
   trait ServiceActor extends Actor with HttpService{
-    this: ServiceActionComponent with ServiceRouteComponent with ServiceDirectiveComponent =>
-    override def receive: Actor.Receive = runRoute(serviceRoute.route(serviceAction.receiveAction))
+    this: ServiceRouteComponent with ServicePathComponent=>
+    override def receive: Actor.Receive = runRoute(servicePath.path.happly(serviceRoute.route))
+    override def actorRefFactory = context
   }
 }
 
-//trait ServiceActionImpl extends ServiceActionComponent {
-//  class IntCounter extends ServiceAction {
-//    override def receiveAction: (Int) => ToResponseMarshallable = { num =>
-//      val intsTo = 1 to num
-//      val json = intsTo.toList.toJson
-//      json.toString
-//    }
-//  }
-//}
+trait ServiceRouteImpl extends ServiceRouteComponent{
+  class IntRoute extends ServiceRoute{
+    override def route[L <: shapeless.::[Int, shapeless.::[Int, HNil]]] = { (list: L) =>
+      val intsTo = list.head to list.tail.head
+      val json = intsTo.toList.toJson.toString
+      complete(json)
+    }
+  }
+}
+
+trait ServicePathImpl extends ServicePathComponent {
+  class IntPath extends ServicePath {
+    override def path[L <: shapeless.::[Int, shapeless.::[Int, HNil]]]: Directive[shapeless.::[Int, shapeless.::[Int, HNil]]] = path("api" / "int" / IntNumber / IntNumber)
+  }
+}
 
 object IntService extends ServiceActorComponent{
-
+  class IntServiceActor extends ServiceActor with ServiceRouteImpl with ServicePathImpl{
+    override val serviceRoute: ServiceRoute = new IntRoute
+    override val servicePath: ServicePath = new IntPath
+  }
 }
