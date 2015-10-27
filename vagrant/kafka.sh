@@ -32,8 +32,8 @@ exitscript()
 
 mkdir -p /opt/apache
 cd /opt/apache
-version=0.8.2.1
-scala=2.10
+version=0.8.2.2
+scala=2.11
 release=kafka_$scala-$version
 
 url=archive.apache.org/dist/kafka

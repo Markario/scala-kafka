@@ -33,10 +33,10 @@ exitscript()
 apt-get install -y git
 
 cd /opt
-mkdir stealthly
-chmod a+rw stealthly
-cd stealthly
-git clone https://github.com/stealthly/scala-kafka.git
+mkdir markario
+chmod a+rw markario
+cd markario
+git clone https://github.com/markario/scala-kafka.git
 cd scala-kafka/vagrant
 ./init.sh
 
