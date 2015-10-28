@@ -3,7 +3,6 @@ package com.markario
 /**
  * Created by markzepeda on 10/27/15.
  */
-package com.markario
 
 import akka.actor.{ActorRefFactory, Actor}
 import shapeless.{HNil, HList}
